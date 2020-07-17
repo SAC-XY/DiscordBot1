@@ -31,6 +31,11 @@ class Yomiage(commands.Cog):
 
     @tasks.loop(seconds=10.0)
     async def auto_disconnect(self):
+        if self.vc is None:
+            self.retry_play.stop()  # キューの消化を止める
+            self.clear_play_queue()  # キューの中身をクリアする
+            return self.auto_disconnect.stop()  # 異常状態になってるので監視ループも止める
+
         members = self.vc.channel.members
         users = [user for user in members if user != self.bot.user]
         if len(users) <= 0:
@@ -40,6 +45,7 @@ class Yomiage(commands.Cog):
             self.retry_play.stop()  # キューの消化を止める
             self.clear_play_queue()  # キューの中身をクリアする
             return self.auto_disconnect.stop()  # VCに人が居なくなったら自動切断する監視を停止
+
         return
 
     async def reconnect(self):
