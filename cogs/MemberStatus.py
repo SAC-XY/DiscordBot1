@@ -20,6 +20,17 @@ from db.basewar_resources import BaseWarResources, メンバーが見つから�
 logger = logging.getLogger(__name__)
 
 
+class MemberStatusError(Exception):
+    """MemberStatusモデルが投げる例外の基底クラス"""
+    pass
+
+
+class スプレッドシート上にメンバーが見つからない(MemberStatusError):
+    pass
+
+class スプレッドシート上に職が見つからない(MemberStatusError):
+    pass
+
 class MemberStatus(commands.Cog):
 
     spreadsheet_id: str
@@ -29,11 +40,15 @@ class MemberStatus(commands.Cog):
         self.spreadsheet_id = '1HK96UyIEEiX3Q67yMzpA-bc5eLi0jHm3pgJSTXFnqkY'
 
     @commands.command(name='ステータス')
+    @commands.has_role('攻殻機動隊')
     async def show_my_status(self, ctx, *, member: discord.Member = None):
-        msg = "```\n"
-        msg += '\n'.join(self.get_my_status(ctx.author.name, ctx.author.discriminator))
-        msg += "```"
-        await ctx.channel.send(msg)
+        try:
+            msg = "```\n"
+            msg += '\n'.join(self.get_my_status(ctx.author.id))
+            msg += "```"
+            return await ctx.channel.send(msg)
+        except スプレッドシート上にメンバーが見つからない as e:
+            return await ctx.channel.send(f'スプレッドシート上のメンバー一覧をあなたのDiscordIDで検索したけど見つからなかったよ！')
 
     def get_job_list(self):
         range_name: str = '職名リスト(新規職が追加されたら編集)!A:A'
@@ -45,54 +60,77 @@ class MemberStatus(commands.Cog):
         values = result.get('values', [])
         return values[0]
 
+    @commands.command(name='家門名変更')
+    @commands.has_role('攻殻機動隊')
+    async def update_kamon_name(self, ctx, new_name):
+        try:
+            row_index, match_row = self.スプレッドシートをDiscordIDで検索(ctx.author.id)
+
+            update_values = [
+                [
+                    new_name
+                ]
+            ]
+            body = {
+                'values': update_values
+            }
+            update_range_name = f"メンバー情報一覧!B{row_index + 1}"
+            service = self.get_spreadsheet_service()
+            result = service.spreadsheets().values().update(spreadsheetId=self.spreadsheet_id,
+                                                            range=update_range_name,
+                                                            valueInputOption='USER_ENTERED',
+                                                            body=body).execute()
+
+            self.データベース側の家門名変更(ctx.author.id, new_name)
+            await ctx.send(f'更新完了！')
+        except スプレッドシート上にメンバーが見つからない as e:
+            return await ctx.send(f'スプレッドシート上のメンバー一覧をあなたのDiscordIDで検索したけど見つからなかったよ！')
+        return
+
     @commands.command(name='職変更')
+    @commands.has_role('攻殻機動隊')
     async def update_job(self, ctx, job_name):
         """職変更 アークメイジ"""
-        job_list = self.get_job_list()
+        try:
+            self.データベース側の職業変更(ctx.author.id, job_name)
 
-        if job_name not in job_list:
-            await ctx.channel.send(f'{job_name} という職はしらないなぁ！')
-            return
+            job_list = self.get_job_list()
+            if job_name not in job_list:
+                raise スプレッドシート上に職が見つからない
 
-        search_key = self.create_search_key(ctx.author.name, ctx.author.discriminator)
-
-        values = self.get_member_list()
-        status = [x for x in values if x[10] == search_key][0]
-
-        member_index = values.index(status)
-        update_values = [
-            [
-                job_name
+            row_index, match_row = self.スプレッドシートをDiscordIDで検索(ctx.author.id)
+            update_values = [
+                [
+                    job_name
+                ]
             ]
-        ]
-        body = {
-            'values': update_values
-        }
-        cp_range_name = f"メンバー情報一覧!H{member_index + 1}"
-        service = self.get_spreadsheet_service()
-        result = service.spreadsheets().values().update(spreadsheetId=self.spreadsheet_id,
-                                                        range=cp_range_name,
-                                                        valueInputOption='USER_ENTERED',
-                                                        body=body).execute()
-        logging.info(result)
+            body = {
+                'values': update_values
+            }
+            update_range_name = f"メンバー情報一覧!H{row_index + 1}"
+            service = self.get_spreadsheet_service()
+            result = service.spreadsheets().values().update(spreadsheetId=self.spreadsheet_id,
+                                                            range=update_range_name,
+                                                            valueInputOption='USER_ENTERED',
+                                                            body=body).execute()
+            logging.info(result)
 
-        self.データベース側の職業変更(ctx.author.id, job_name)
-
-        msg = f"{ctx.author.name} さんの職業を {job_name} に更新しました〜！"
-        await ctx.channel.send(msg)
+            msg = f"{ctx.author.name} さんの職業を {job_name} に更新しました〜！"
+            return await ctx.channel.send(msg)
+        except スプレッドシート上にメンバーが見つからない as e:
+            return await ctx.send(f'スプレッドシート上のメンバー一覧をあなたのDiscordIDで検索したけど見つからなかったよ！')
+        except スプレッドシート上に職が見つからない as e:
+            return await ctx.channel.send(f'スプレッドシートの職マスタに {job_name} という職が見つかりませんでした！')
+        except メンバーが見つからない as e:
+            return await ctx.channel.send(f'タチコマDBのメンバー一覧をあなたのDiscordIDで検索したけど見つからなかったよ！')
+        except 職が見つからない as e:
+            return await ctx.channel.send(f'タチコマDBの職マスタに {job_name} という職が見つかりませんでした！( 職マスタ追加 を行ってください)')
 
     @commands.command(name='戦闘力更新')
+    @commands.has_role('攻殻機動隊')
     async def my_combat_point(self, ctx, cp, *, member: discord.Member = None):
         """戦闘力更新 {戦闘力}"""
-        user_key = self.create_search_key(ctx.author.name, ctx.author.discriminator)
-        logger.info(user_key)
-
-        values = self.get_member_list()
-        status = [x for x in values if x[10] == user_key][0]
-        logger.info(values.index(status))
-        logger.info(values[26])
-
-        member_index = values.index(status)
+        row_index, match_row = self.スプレッドシートをDiscordIDで検索(ctx.author.id)
         update_values = [
             [
                 cp
@@ -101,10 +139,10 @@ class MemberStatus(commands.Cog):
         body = {
             'values': update_values
         }
-        cp_range_name = f"メンバー情報一覧!I{member_index + 1}"
+        update_range_name = f"メンバー情報一覧!I{row_index + 1}"
         service = self.get_spreadsheet_service()
         result = service.spreadsheets().values().update(spreadsheetId=self.spreadsheet_id,
-                                                        range=cp_range_name,
+                                                        range=update_range_name,
                                                         valueInputOption='USER_ENTERED',
                                                         body=body).execute()
 
@@ -174,11 +212,12 @@ class MemberStatus(commands.Cog):
         values = result.get('values', [])
         return values
 
-    def create_search_key(self, name, discriminator):
-        return f"{name}#{discriminator}"
-
     def データベース側の戦闘力更新(self, user_id, 戦闘力):
         Member.戦闘力更新(session, user_id, 戦闘力)
+        return
+
+    def データベース側の家門名変更(self, user_id, 家門名):
+        Member.家門名変更(session, user_id, 家門名)
         return
 
     def データベース側の職業変更(self, user_id, 職業名):
@@ -240,6 +279,19 @@ class MemberStatus(commands.Cog):
             return
         await ctx.channel.send(f"{ctx.author.name} さんの資材状況 生命の粉: {生命の粉}, 頑丈な原木: {頑丈な原木}, 黒い水晶の原石: {黒い水晶の原石} で更新完了！")
 
+    def スプレッドシートをDiscordIDで検索(self, discord_id):
+        range_name = 'メンバー情報一覧!A1:P'
+        service = self.get_spreadsheet_service()
+        sheet = service.spreadsheets()
+        result = sheet.values().get(spreadsheetId=self.spreadsheet_id,
+                                    range=range_name).execute()
+        match_row = [(idx, row) for idx, row in enumerate(result['values']) if row[12] == str(discord_id)]
+
+        if len(match_row) <= 0:
+            raise スプレッドシート上にメンバーが見つからない
+
+        return match_row[0]
+
     @staticmethod
     def get_credentials():
         scopes = [
@@ -249,15 +301,8 @@ class MemberStatus(commands.Cog):
         credentials = service_account.Credentials.from_service_account_file(cred_path, scopes=scopes)
         return credentials
 
-    def get_my_status(self, username, discriminator):
-        user_key = f"{username}#{discriminator}"
-        logger.info(user_key)
-
-        values = self.get_member_list()
-
-        status = [x for x in values if x[10] == user_key][0]
-        logger.info(status)
-
+    def get_my_status(self, discord_user_id):
+        index, status = self.スプレッドシートをDiscordIDで検索(discord_user_id)
         result = [
             f"家門名: {status[1]}",
             f"加入日: {status[2]}",

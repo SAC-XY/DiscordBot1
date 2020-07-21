@@ -103,6 +103,33 @@ class Member(Base):
         return
 
     @classmethod
+    def 家門名変更(cls,session, user_id, 家門名):
+        member = cls.UserIDでメンバーを取得(session, user_id)
+        member_history = cls.UUIDでメンバー履歴を取得(session, member.メンバー履歴_UUIDv4)
+
+        new_history_id = uuid.uuid4()
+        new_history = cls.classes.メンバー履歴(
+            UUIDv4=new_history_id,
+            user_id=str(user_id),
+            家門名=家門名,
+            戦闘力=member_history.戦闘力,
+            職マスタ_職名=member_history.職マスタ_職名
+        )
+        session.add(new_history)
+        session.flush()
+
+        # メンバーマスタ側に最新の履歴を示すように変更を加える
+        member.メンバー履歴_UUIDv4 = new_history_id
+        session.add(member)
+        session.flush()
+
+        try:
+            session.commit()
+        except InvalidRequestError as e:
+            return
+        return
+
+    @classmethod
     def 職業変更(cls,session, user_id, 職業名):
         member = cls.UserIDでメンバーを取得(session, user_id)
         member_history = cls.UUIDでメンバー履歴を取得(session, member.メンバー履歴_UUIDv4)
