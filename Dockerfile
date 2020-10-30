@@ -1,4 +1,4 @@
-FROM python:3
+FROM python:3.9
 
 WORKDIR /usr/src/app
 
@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN cp ./ipag.ttf /usr/local/lib/python3.8/site-packages/matplotlib/mpl-data/fonts/ttf/
+RUN cp ./ipag.ttf /usr/local/lib/python3.9/site-packages/matplotlib/mpl-data/fonts/ttf/
 
 # RUN echo "font.family: IPAGothic" >> /usr/local/lib/python3.8/site-packages/matplotlib/mpl-data/matplotlibrc
 # /usr/local/lib/python3.8/site-packages/matplotlib/mpl-data/matplotlibrc/fonts/ttf/ipag.ttf
