@@ -180,14 +180,14 @@ class Yomiage(commands.Cog):
         """ Google Cloud Text-to-Speech を利用してssmlから音声ファイルを生成する """
         client = texttospeech.TextToSpeechClient()
 
-        synthesis_input = texttospeech.types.SynthesisInput(ssml=ssml)
+        synthesis_input = texttospeech.SynthesisInput(ssml=ssml)
 
-        voice = texttospeech.types.VoiceSelectionParams(
+        voice = texttospeech.VoiceSelectionParams(
             language_code='ja-JP',
             ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL)
 
-        audio_config = texttospeech.types.AudioConfig(
-            audio_encoding=texttospeech.enums.AudioEncoding.MP3)
+        audio_config = texttospeech.AudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.MP3)
 
         return client.synthesize_speech(synthesis_input, voice, audio_config)
 
