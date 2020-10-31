@@ -13,8 +13,18 @@ time.tzset()
 print(time.tzname)
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 logging.getLogger('sqlalchemy.engine').setLevel(logging.WARN)
+
+logging.getLogger('asyncio').setLevel(logging.INFO)
+
+logging.getLogger('matplotlib').setLevel(logging.INFO)
+logging.getLogger('matplotlib.font_manager').setLevel(logging.INFO)
+logging.getLogger('matplotlib.pyplot').setLevel(logging.INFO)
+
+logging.getLogger('discord.client').setLevel(logging.INFO)
+logging.getLogger('discord.gateway').setLevel(logging.INFO)
+logging.getLogger('discord.http').setLevel(logging.INFO)
 
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("[%(levelname)s]: %(relativeCreated)07d[ms] : %(name)s : %(lineno)s : %(message)s"))
