@@ -184,7 +184,7 @@ class Yomiage(commands.Cog):
 
         voice = texttospeech.types.VoiceSelectionParams(
             language_code='ja-JP',
-            ssml_gender=texttospeech.enums.SsmlVoiceGender.FEMALE)
+            ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL)
 
         audio_config = texttospeech.types.AudioConfig(
             audio_encoding=texttospeech.enums.AudioEncoding.MP3)
